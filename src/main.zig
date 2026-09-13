@@ -1,4 +1,5 @@
 const std = @import("std");
+const Stdio = @import("ZigStdIo").StdIo;
 const Allocator = std.mem.Allocator;
 const Io = std.Io;
 
@@ -8,28 +9,22 @@ pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const io = init.io;
     
-    var stdin_buf: [1024]u8 = undefined;
-    var reader = std.Io.File.stdin().reader(io, &stdin_buf);
-    const stdin = &reader.interface;
+    var stdio: Stdio = try .init(allocator, io, 1042);
+    defer stdio.deinit();
     
-    var stdout_buf: [1024]u8 = undefined;
-    var writer = std.Io.File.stdout().writer(io, &stdout_buf);
-    const stdout = &writer.interface;
-    cls(stdout);
+    try stdio.cls();
     
     const res = try lsblk(allocator, io);
     const entries = res.blockdevices;
 
-    try stdout.writeAll("Select a Block Device: \n");
+    try stdio.writeln("Select block device: ");
     for(entries, 0..) |ent, i| {
-        try stdout.print("{d}: {s}\n", .{i, ent.name});
+        try stdio.print("{d}: {s}\n", .{i, ent.name});
     }
-    try stdout.flush();
 
-    const resp = try stdin.takeDelimiterExclusive('\n');
+    const resp = try stdio.input(null, .{});
     const idx = try std.fmt.parseInt(usize, resp, 0);
-    try stdout.print("You etnered: {s}", .{entries[idx].name});
-    try stdout.flush();
+    try stdio.print("You entered: {s}", .{entries[idx].name});
 }
 
 const LsblkEntry = struct {
