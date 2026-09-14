@@ -4,6 +4,7 @@ const Allocator = std.mem.Allocator;
 const Io = std.Io;
 
 const kayscript = @import("kayscript");
+const CommandCenter = @import("CommandCenter.zig").CommandCenter;
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
@@ -63,11 +64,4 @@ fn lsblk(allocator: Allocator, io: Io) !*LsblkOutput {
     const res_ptr = try allocator.create(LsblkOutput);
     res_ptr.* = parsed.value;
     return res_ptr;
-}
-
-fn getCmdError(cmd: std.process.RunResult) error{CommandFailed, CommandTerminated}!void {
-    switch(cmd.term) {
-        .exited => |code| if(code != 0) return error.CommandFailed,
-        else => return error.CommandTerminated,
-    }
 }
