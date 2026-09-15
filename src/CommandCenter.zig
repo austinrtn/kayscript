@@ -15,7 +15,7 @@ pub const CommandCenter = struct {
     }
 
     pub fn run(self: Self, command: []const []const u8) !RunResult {
-        const cmd = try std.process.run(self.allocator, self.io, .{command});
+        const cmd = try std.process.run(self.allocator, self.io, .{.argv = command});
 
         try getCmdError(cmd);
         return cmd;
