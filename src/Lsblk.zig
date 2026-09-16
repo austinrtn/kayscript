@@ -15,8 +15,9 @@ const LsblkOutput = struct {
 };
 
 pub fn lsblk(allocator: std.mem.Allocator, cmd_center: *CommandCenter) ![]LsblkEntry {
-    const cmd = try cmd_center.run(args);
-
+    const cmd, const success, _ = try cmd_center.run(args);
+    if(!success) return error.CommandFailed;
+    
     const parsed = try std.json.parseFromSlice(
         LsblkOutput,
         allocator,

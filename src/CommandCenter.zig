@@ -3,7 +3,7 @@ const RunResult = std.process.RunResult;
 
 pub const CommandCenter = struct {
     const Self = @This();
-    
+
     allocator: std.mem.Allocator,
     io: std.Io,
 
@@ -14,17 +14,17 @@ pub const CommandCenter = struct {
         };
     }
 
-    pub fn run(self: Self, command: []const []const u8) !RunResult {
-        const cmd = try std.process.run(self.allocator, self.io, .{.argv = command});
+    pub fn run(self: Self, command: []const []const u8) !struct{RunResult, bool, u8} {
+        const cmd = try std.process.run(self.allocator, self.io, .{ .argv = command });
 
-        try getCmdError(cmd);
-        return cmd;
+        if (cmd.term != .exited) return error.CommandTerminated;
+        const success = cmd.term.exited == 0;
+        return .{cmd, success, cmd.term.exited};
     }
-    
-    fn getCmdError(cmd: RunResult) error{CommandFailed, CommandTerminated}!void {
-        switch(cmd.term) {
-            .exited => |code| if(code != 0) return error.CommandFailed,
-            else => return error.CommandTerminated,
-        }
+
+    pub fn sudoV(self: Self) !RunResult {
+        const cmd = try std.process.run(self.allocator, self.io, .{.argv = &.{"sudo", "-v"}});
+        if (cmd.term != .exited) return error.CommandTerminated;
+        return cmd;
     }
 };
