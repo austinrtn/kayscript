@@ -6,6 +6,8 @@ const Io = std.Io;
 const kayscript = @import("kayscript");
 const CommandCenter = @import("CommandCenter.zig").CommandCenter;
 const lsblk = @import("Lsblk.zig").lsblk;
+const Config = @import("Config.zig").Config;
+
 
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
@@ -19,27 +21,10 @@ pub fn main(init: std.process.Init) !void {
     const args = try init.minimal.args.toSlice(allocator);
     const arg = if(args.len >= 2) args[1] else "";
 
-    const config_exists = try createConfig(io);
-    _ = config_exists;
-
-    if(std.mem.eql(u8, arg, "--c")) {
-        try setupConfig(allocator, &stdio, &cmd_center);
-        return;
-    }
-}
-
-fn createConfig(io: Io) !bool {
-    //var buf = [1024]u8;
-    var config_file = blk: {
-        var cwd = Io.Dir.cwd();
-        const cf_file = cwd.openFile(io, "config.json", .{}) catch |err| switch(err) {
-            error.FileNotFound => break :blk try cwd.createFile(io, "config.json", .{}),
-            else => return err,
-        };
-        break :blk cf_file;
-    };
-    defer config_file.close(io);
-    return true;
+    var config: Config = try .init(allocator, io);
+    defer config.deinit();
+    
+    if(std.mem.eql(u8, arg, "--c") or config.new_file_created) try setupConfig(allocator, &stdio, &cmd_center);
 }
 
 fn setupConfig(allocator: Allocator, stdio: *Stdio, cmd_center: *CommandCenter) !void {
