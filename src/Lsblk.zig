@@ -2,7 +2,7 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const CommandCenter = @import("CommandCenter.zig").CommandCenter;
 
-const LsblkEntry = struct {
+pub const LsblkEntry = struct {
     name: []const u8,
     type: []const u8,
     @"id-link": ?[]const u8,

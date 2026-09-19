@@ -48,15 +48,20 @@ fn setupConfig(allocator: Allocator, stdio: *Stdio, cmd_center: *CommandCenter) 
     
     try stdio.writeln("Select Parition to Mount: ");
     const partitions = try Lsblk.queryBlockDevice(allocator, cmd_center, block_dev_loc);
-    const partitions_fmt = try Lsblk.fmtLsblkEntries(allocator, partitions);
-    try stdio.print("{s}\n", .{partitions_fmt});
-    idx = try std.fmt.parseInt(usize, try stdio.input(null, .{}), 0);
-    const selected_partition = partitions[idx];
-    _ = selected_partition;
-    try stdio.cls();
+    var selected_partition: Lsblk.LsblkEntry = undefined;
+    var partition_loc: []u8 = "";
     
+    if(partitions.len > 0) {
+        const partitions_fmt = try Lsblk.fmtLsblkEntries(allocator, partitions);
+        try stdio.print("{s}\n", .{partitions_fmt});
+        idx = try std.fmt.parseInt(usize, try stdio.input(null, .{}), 0);
+        selected_partition = partitions[idx];
+        partition_loc = try std.fmt.allocPrint(allocator, "/dev/{s}", .{selected_partition.name});
+        
+        try stdio.cls();
+    }
 
-    const default_mount_pnt = try std.fmt.allocPrint(allocator, "/mnt/{s}/", .{selected_block_dev.name});
+    const default_mount_pnt = try std.fmt.allocPrint(allocator, "/mnt/{s}/", .{selected_partition.name});
     const mount_pnt = blk: {
         const mnt_pt = try stdio.input("Enter mount point (default: {s})\n", .{default_mount_pnt});
         if(mnt_pt.len == 0) break :blk default_mount_pnt
@@ -69,7 +74,7 @@ fn setupConfig(allocator: Allocator, stdio: *Stdio, cmd_center: *CommandCenter) 
     _, _, const code = try cmd_center.run(&.{"findmnt", "-rn", "-S", block_dev_loc,});
 
     if(code == 1) {
-        const mnt, success, _ = try cmd_center.run(&.{"sudo", "mount", block_dev_loc, mount_pnt});
+        const mnt, success, _ = try cmd_center.run(&.{"sudo", "mount", partition_loc, mount_pnt});
         if(!success) try stdio.errorPrint("{s}\n", .{mnt.stderr}, null);
         return error.UnableToMount;
     }
