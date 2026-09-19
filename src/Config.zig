@@ -8,15 +8,14 @@ pub const Config = struct {
 
     allocator: std.mem.Allocator,
     io: std.Io,
-    file: *?File = undefined,
+    file: ?*File = null,
     new_file_created: bool = false,
     device_name: ?[]const u8 = null,
     mount_point: ?[]const u8 = null,
 
     pub fn init(allocator: std.mem.Allocator, io: std.Io) !Self {
         var self = Self{ .allocator = allocator, .io = io };
-        const file_ptr = try allocator.create(?File);
-        file_ptr.* = null;
+        self.file = try allocator.create(File);
         
         try self.setFile();
 
@@ -24,15 +23,16 @@ pub const Config = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        if (self.file.*) |f| f.close(self.io);
-        self.allocator.destroy(self.file);
+        if (self.file) |f| {
+            f.close(self.io);   
+            self.allocator.destroy(f);
+        }
     }
 
     fn setFile(self: *Self) !void {
         var cwd = std.Io.Dir.cwd();
         const config_file = cwd.openFile(self.io, file_name, .{});
         var file: File = undefined;
-        defer file.close(self.io);
 
         if (config_file) |f| file = f
         else |err| switch (err) {
@@ -43,6 +43,6 @@ pub const Config = struct {
             else => return err,
         }
 
-        self.file.* = file;
+        self.file.?.* = file;
     }
 };

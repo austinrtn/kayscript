@@ -33,8 +33,8 @@
     // internet connectivity.
     .dependencies = .{
         .ZigStdIo = .{
-            .url = "https://github.com/austinrtn/ZigStdIo/archive/refs/tags/1.1.tar.gz",
-            .hash = "ZigStdIo-0.0.0-jUJCpSVKAABvOx3hBM7D26xZd3-Jc3RRQrOTfEbi4X7g",
+            .url = "https://github.com/austinrtn/ZigStdIo/archive/refs/tags/1.2.tar.gz",
+            .hash = "ZigStdIo-0.0.0-jUJCpehLAADkqivitkOUsjJysJry_VkTBolkJEWiC5C0",
         },
     },
     .paths = .{
