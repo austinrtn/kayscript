@@ -71,11 +71,15 @@ fn setupConfig(allocator: Allocator, stdio: *Stdio, cmd_center: *CommandCenter) 
     const mkdir, var success, _ = try cmd_center.run(&.{"sudo", "mkdir", "-p", mount_pnt});
     if(!success) try stdio.errorPrint("{s}\n", .{mkdir.stderr}, 1);
 
-    _, _, const code = try cmd_center.run(&.{"findmnt", "-rn", "-S", block_dev_loc,});
+    _, _, const code = try cmd_center.run(&.{"findmnt", "-rn", "-S", mount_pnt,});
 
     if(code == 1) {
-        const mnt, success, _ = try cmd_center.run(&.{"sudo", "mount", partition_loc, mount_pnt});
-        if(!success) try stdio.errorPrint("{s}\n", .{mnt.stderr}, null);
-        return error.UnableToMount;
+        var do_mount = false;
+        while(true) {
+            try stdio.cls();
+            const in = try stdio.input("Mount not detected.  Would you like to mount `{s}` to `{s}`? [Y/n]\n", .{});
+        }
+        _, success, _ = try cmd_center.run(&.{"sudo", "mount", partition_loc, mount_pnt});
+        if(!success) return error.UnableToMount;
     }
 }
