@@ -8,26 +8,25 @@ const CommandCenter = @import("CommandCenter.zig").CommandCenter;
 const Lsblk = @import("Lsblk.zig");
 const Config = @import("Config.zig").Config;
 
-
 pub fn main(init: std.process.Init) !void {
     const allocator = init.arena.allocator();
     const io = init.io;
-    
+
     var stdio: Stdio = try .init(allocator, io, 1042);
     var cmd_center: CommandCenter = .init(allocator, io);
-    
+
     try stdio.cls();
     _ = try cmd_center.sudoV();
-    
+
     const args = try init.minimal.args.toSlice(allocator);
-    const arg = if(args.len >= 2) args[1] else "";
+    const arg = if (args.len >= 2) args[1] else "";
 
     var config: Config = try .init(allocator, io);
     defer config.deinit();
-    
-    if(std.mem.eql(u8, arg, "--c") or config.new_file_created) {
-        setupConfig(allocator, &stdio, &cmd_center) catch |err|{
-            _ = cmd_center.run(&.{"rm", "-f", "config.json"}) catch {};
+
+    if (std.mem.eql(u8, arg, "--c") or config.new_file_created) {
+        setupConfig(allocator, &stdio, &cmd_center) catch |err| {
+            _ = try cmd_center.run(&.{ "rm", "-f", "config.json" });
             return err;
         };
     }
@@ -45,41 +44,58 @@ fn setupConfig(allocator: Allocator, stdio: *Stdio, cmd_center: *CommandCenter) 
     const selected_block_dev = block_devices[idx];
     const block_dev_loc = try std.fmt.allocPrint(allocator, "/dev/{s}", .{selected_block_dev.name});
     try stdio.cls();
-    
+
     try stdio.writeln("Select Parition to Mount: ");
     const partitions = try Lsblk.queryBlockDevice(allocator, cmd_center, block_dev_loc);
     var selected_partition: Lsblk.LsblkEntry = undefined;
     var partition_loc: []u8 = "";
-    
-    if(partitions.len > 0) {
+
+    if (partitions.len > 0) {
         const partitions_fmt = try Lsblk.fmtLsblkEntries(allocator, partitions);
         try stdio.print("{s}\n", .{partitions_fmt});
         idx = try std.fmt.parseInt(usize, try stdio.input(null, .{}), 0);
         selected_partition = partitions[idx];
         partition_loc = try std.fmt.allocPrint(allocator, "/dev/{s}", .{selected_partition.name});
-        
+
         try stdio.cls();
     }
 
     const default_mount_pnt = try std.fmt.allocPrint(allocator, "/mnt/{s}/", .{selected_partition.name});
     const mount_pnt = blk: {
         const mnt_pt = try stdio.input("Enter mount point (default: {s})\n", .{default_mount_pnt});
-        if(mnt_pt.len == 0) break :blk default_mount_pnt
-        else break :blk mnt_pt;
+        if (mnt_pt.len == 0) break :blk default_mount_pnt else break :blk mnt_pt;
     };
-    
-    const mkdir, var success, _ = try cmd_center.run(&.{"sudo", "mkdir", "-p", mount_pnt});
-    if(!success) try stdio.errorPrint("{s}\n", .{mkdir.stderr}, 1);
 
-    _, _, const code = try cmd_center.run(&.{"findmnt", "-rn", "-S", mount_pnt,});
+    const mkdir, var success, _ = try cmd_center.run(&.{ "sudo", "mkdir", "-p", mount_pnt });
+    if (!success) try stdio.errorPrint("{s}\n", .{mkdir.stderr}, 1);
 
-    if(code == 1) {
-        var do_mount = false;
-        while(true) {
+    _, _, const code = try cmd_center.run(&.{
+        "findmnt",
+        "-rn",
+        "-S", partition_loc,
+        "-M", mount_pnt,
+    });
+
+    if (code == 1) {
+        while (true) {
             try stdio.cls();
-            const in = try stdio.input("Mount not detected.  Would you like to mount `{s}` to `{s}`? [Y/n]\n", .{});
+            const do_mount = stdio.getYesOrNo(
+                "Mount not detected.  Would you like to mount `{s}` to `{s}`? [Y/n]\n", 
+                .{ partition_loc, mount_pnt }
+            ) catch continue;
+
+            if (!do_mount) {
+                try stdio.writeln("Need to mount storage device to continue...");
+                return;
+            }
+
+            _, success, _ = try cmd_center.run(&.{ "sudo", "mount", partition_loc, mount_pnt });
+            if (!success) return error.UnableToMount;
+
+            break;
         }
-        _, success, _ = try cmd_center.run(&.{"sudo", "mount", partition_loc, mount_pnt});
-        if(!success) return error.UnableToMount;
+    } else {
+        try stdio.cls();
+        try stdio.writeln("Partition already mounted...");
     }
 }
